@@ -8,7 +8,6 @@
 
 <p>
   <a href="https://github.com/aiming-lab/MetaClaw"><img src="https://img.shields.io/badge/github-MetaClaw-181717?style=flat&labelColor=555&logo=github&logoColor=white" alt="GitHub"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=flat&labelColor=555" alt="License MIT"></a>
   <img src="https://img.shields.io/badge/⚡_Fully_Async-yellow?style=flat&labelColor=555" alt="Fully Async" />
   <img src="https://img.shields.io/badge/☁️_No_GPU_Cluster-blue?style=flat&labelColor=555" alt="No GPU Cluster" />
   <img src="https://img.shields.io/badge/🛠️_Skill_Evolution-orange?style=flat&labelColor=555" alt="Skill Evolution" />
@@ -171,3 +170,9 @@ export AZURE_OPENAI_ENDPOINT="https://your-endpoint.openai.azure.com/"
 ## 🙏 Acknowledgements
 
 MetaClaw builds on [OpenClaw](https://openclaw.ai) and [Tinker](https://www.thinkingmachines.ai/tinker/). The RL design is inspired by [OpenClaw-RL](https://github.com/Gen-Verse/OpenClaw-RL). The skill bank draws from [awesome-openclaw-skills](https://github.com/VoltAgent/awesome-openclaw-skills).
+
+---
+
+## License
+
+This project is licensed under the [Apache License 2.0](LICENSE).
