@@ -46,7 +46,7 @@
 
 **完全异步。** 推理服务、奖励打分、模型训练完全解耦。训练在后台进行，模型持续响应不间断。
 
-**两种学习模式。** RL（GRPO）用于隐式反馈，On-Policy Distillation（OPD）用于更丰富的文本信号。
+**两种学习模式。** RL（GRPO）用于隐式反馈，On-Policy Distillation（OPD）用于将更大的教师模型蒸馏到学生模型。OPD 模式下，学生模型正常生成回复，教师模型对相同回复提供逐 token 的 log-probability，传入损失函数（如 `cispo`）使学生逐步逼近教师分布。教师模型需部署在 OpenAI 兼容的 `/v1/completions` 端点（如 vLLM、SGLang）。
 
 ---
 
@@ -93,6 +93,11 @@ python examples/run_conversation_rl.py
 | `use_prm` | `True` | 是否启用 PRM 奖励打分 |
 | `prm_url` | `"https://api.openai.com/v1"` | 任意 OpenAI 兼容的 judge 服务地址 |
 | `prm_model` | `"gpt-5.2"` | Judge 模型 |
+| `use_opd` | `False` | 是否启用 OPD（教师 logprobs）模式 |
+| `teacher_url` | `""` | 教师模型 base URL（OpenAI 兼容 `/v1/completions`） |
+| `teacher_model` | `""` | 教师模型名称 |
+| `teacher_api_key` | `""` | 教师模型 API key |
+| `kl_penalty_coef` | `1.0` | OPD 的 KL 惩罚系数 |
 | `use_skills` | `False` | 是否启用 Skill 注入 |
 | `enable_skill_evolution` | `False` | 是否自动从失败中生成新 Skill |
 | `proxy_port` | `30000` | 代理服务器监听端口 |

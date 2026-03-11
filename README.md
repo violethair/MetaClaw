@@ -64,9 +64,9 @@ Serving, reward modeling, and training are fully decoupled. The agent continues 
 ### **Two learning modes**
 MetaClaw supports both:
 - **RL (GRPO)** for learning from implicit feedback signals
-- **On-Policy Distillation (OPD)** for leveraging richer natural-language supervision
+- **On-Policy Distillation (OPD)** for distilling a larger teacher model into the student on-policy
 
-This gives you a practical path to improve agents from both lightweight signals and high-quality textual feedback.
+In OPD mode, the student generates responses as usual, and a teacher model provides per-token log-probabilities on those same responses. The teacher logprobs are passed to the loss function (e.g., `cispo`) so the student learns to match the teacher's distribution. The teacher must be served behind an OpenAI-compatible `/v1/completions` endpoint (e.g., vLLM, SGLang).
 
 ---
 
@@ -113,6 +113,11 @@ All settings are in `MetaClawConfig` (`metaclaw/config.py`). The most commonly a
 | `use_prm` | `True` | Enable PRM reward scoring |
 | `prm_url` | `"https://api.openai.com/v1"` | Any OpenAI-compatible judge endpoint |
 | `prm_model` | `"gpt-5.2"` | Judge model |
+| `use_opd` | `False` | Enable OPD (teacher logprobs) mode |
+| `teacher_url` | `""` | Teacher model base URL (OpenAI-compatible `/v1/completions`) |
+| `teacher_model` | `""` | Teacher model name |
+| `teacher_api_key` | `""` | Teacher model API key |
+| `kl_penalty_coef` | `1.0` | KL penalty coefficient for OPD |
 | `use_skills` | `False` | Enable skill injection |
 | `enable_skill_evolution` | `False` | Auto-generate skills from failures |
 | `proxy_port` | `30000` | Proxy listen port |
