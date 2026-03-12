@@ -46,7 +46,7 @@ metaclaw start --mode rl    # 可选：+ Tinker 云端实时 RL 训练
 
 ## 🔥 最新动态
 
-- **[2026/03/10]** **v0.2** —— 通过 `metaclaw` CLI 一键部署。Skill 默认开启，RL 现为可选。
+- **[2026/03/11]** **v0.2** —— 通过 `metaclaw` CLI 一键部署。Skill 默认开启，RL 现为可选。
 - **[2026/03/09]** 正式发布 **MetaClaw** —— 只需与 Agent 对话，即可让其自动进化。**无需** GPU 部署，直接接入 **API** 即可。
 
 ---
