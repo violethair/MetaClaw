@@ -46,7 +46,8 @@ metaclaw start --mode skills_only  # 仅 Skills，无 RL（无需 Tinker）
 
 ## 🔥 最新动态
 
-- **[2026/03/11]** **v0.2** —— 发布 `metaclaw` CLI，支持一键部署。Skill 注入默认开启，RL 训练改为可选项。
+- **[2026/03/11]** **v0.3** —— 元学习调度器：慢速 RL 更新仅在睡眠时间、空闲期间或 Google Calendar 会议期间运行。新增 MAML 风格的 support/query 集分离，防止过时的奖励信号污染模型更新。
+- **[2026/03/10]** **v0.2** —— 发布 `metaclaw` CLI，支持一键部署。Skill 注入默认开启，RL 训练改为可选项。
 - **[2026/03/09]** 正式发布 **MetaClaw** —— 基于 Tinker 云端 LoRA 的 CLI Agent 在线 RL 训练框架，内置 Skill 注入与自动进化能力。
 
 ---
@@ -257,6 +258,27 @@ metaclaw start --mode rl
 教师模型需部署在 OpenAI 兼容的 `/v1/completions` 端点（如 vLLM、SGLang）。OPD 可与 PRM 打分同时使用，两者均异步运行。
 
 参考 `examples/run_conversation_opd.py` 获取编程示例，或使用 `scripts/run_openclaw_tinker_opd.sh` 快速启动。
+
+---
+
+## 🧠 进阶：元学习调度器（v0.3）
+
+RL 模式下，权重热更新步骤会暂停 Agent 数分钟。调度器（`auto` 模式下默认开启）将 RL 更新推迟到用户不活跃窗口，确保使用期间不受干扰。
+
+```bash
+metaclaw config scheduler.sleep_start "23:00"
+metaclaw config scheduler.sleep_end   "07:00"
+metaclaw config scheduler.idle_threshold_minutes 30
+
+# 可选：Google Calendar 集成
+pip install -e ".[scheduler]"
+metaclaw config scheduler.calendar.enabled true
+metaclaw config scheduler.calendar.credentials_path ~/.metaclaw/client_secrets.json
+```
+
+三种条件可触发更新窗口（任一即可）：配置的睡眠时间、系统键盘空闲、或正在进行的 Google Calendar 日程。如果用户在更新中途返回，部分 batch 会被保存并在下个窗口恢复。
+
+每个 `ConversationSample` 会标记 `skill_generation` 版本号。当 Skill 进化触发版本递增时，RL 缓冲区会被清空，确保只使用进化后的样本进行梯度更新（MAML support/query 集分离）。
 
 ---
 

@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="logo.jpg" alt="MetaClaw" width="600">
+<img src="new_logo.png" alt="MetaClaw" width="600">
 
 <br/>
 
@@ -46,7 +46,8 @@ metaclaw start --mode skills_only  # Nur Skills, kein RL (kein Tinker nötig)
 
 ## 🔥 Neuigkeiten
 
-- **[11.03.2026]** **v0.2** — Ein-Klick-Deployment über das `metaclaw` CLI. Skill-Injektion standardmäßig aktiviert, RL jetzt optional.
+- **[11.03.2026]** **v0.3** — Meta-Learning-Scheduler: RL-Gewichtsupdates laufen nur noch während Schlafenszeiten, Leerlaufphasen oder Google-Calendar-Meetings. MAML-inspirierte Support/Query-Set-Trennung hinzugefügt.
+- **[10.03.2026]** **v0.2** — Ein-Klick-Deployment über das `metaclaw` CLI. Skill-Injektion standardmäßig aktiviert, RL jetzt optional.
 - **[09.03.2026]** Offizieller Release von **MetaClaw** — Sprich mit deinem Agenten, er entwickelt sich automatisch weiter. Kein GPU-Cluster erforderlich.
 
 ---
@@ -171,6 +172,27 @@ metaclaw start
 ```
 
 Im RL-Modus wird jeder Gesprächszug tokenisiert und als Trainingsbeispiel eingereicht. Ein Richter-LLM (PRM) bewertet Antworten asynchron, und Tinker Cloud führt LoRA-Fine-Tuning durch.
+
+---
+
+## 🧠 Erweitert: Meta-Learning-Scheduler (v0.3)
+
+Im RL-Modus pausiert der Gewichts-Hot-Swap-Schritt den Agenten für mehrere Minuten. Der Scheduler (im `auto`-Modus standardmäßig aktiviert) verschiebt RL-Updates in Benutzer-Inaktivitätsfenster, damit der Agent während der aktiven Nutzung nie unterbrochen wird.
+
+```bash
+metaclaw config scheduler.sleep_start "23:00"
+metaclaw config scheduler.sleep_end   "07:00"
+metaclaw config scheduler.idle_threshold_minutes 30
+
+# Optional: Google Calendar Integration
+pip install -e ".[scheduler]"
+metaclaw config scheduler.calendar.enabled true
+metaclaw config scheduler.calendar.credentials_path ~/.metaclaw/client_secrets.json
+```
+
+Drei Bedingungen lösen ein Update-Fenster aus (eine reicht aus): konfigurierte Schlafenszeiten, Tastatur-Inaktivität des Systems oder ein laufendes Google-Calendar-Event. Wenn der Benutzer während eines Updates zurückkehrt, wird der partielle Batch gespeichert und im nächsten Fenster fortgesetzt.
+
+Jedes `ConversationSample` wird mit einer `skill_generation`-Version getaggt. Wenn die Skill-Evolution die Generation erhöht, wird der RL-Buffer geleert, sodass nur Post-Evolutions-Samples für Gradient-Updates verwendet werden (MAML Support/Query-Set-Trennung).
 
 ---
 

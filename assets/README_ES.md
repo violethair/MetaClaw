@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="logo.jpg" alt="MetaClaw" width="600">
+<img src="new_logo.png" alt="MetaClaw" width="600">
 
 <br/>
 
@@ -46,7 +46,8 @@ metaclaw start --mode skills_only  # solo skills, sin RL (no requiere Tinker)
 
 ## 🔥 Novedades
 
-- **[11/03/2026]** **v0.2** — Despliegue en un clic mediante el CLI `metaclaw`. Inyección de skills activada por defecto, RL ahora es opcional.
+- **[11/03/2026]** **v0.3** — Planificador de meta-aprendizaje: las actualizaciones RL solo se ejecutan durante horas de sueño, periodos de inactividad o reuniones de Google Calendar. Se agrega separación de conjuntos support/query estilo MAML.
+- **[10/03/2026]** **v0.2** — Despliegue en un clic mediante el CLI `metaclaw`. Inyección de skills activada por defecto, RL ahora es opcional.
 - **[09/03/2026]** Lanzamiento oficial de **MetaClaw** — Habla con tu agente y deja que evolucione automáticamente. Sin cluster GPU requerido.
 
 ---
@@ -171,6 +172,27 @@ metaclaw start
 ```
 
 En modo RL, cada turno de conversación se tokeniza y se envía como muestra de entrenamiento. Un LLM juez (PRM) puntúa las respuestas de forma asíncrona, y Tinker Cloud ejecuta el fine-tuning LoRA.
+
+---
+
+## 🧠 Avanzado: Planificador de meta-aprendizaje (v0.3)
+
+En modo RL, el paso de hot-swap de pesos pausa el agente durante varios minutos. El planificador (habilitado por defecto en modo `auto`) pospone las actualizaciones RL a ventanas de inactividad del usuario para que el agente nunca se interrumpa durante el uso activo.
+
+```bash
+metaclaw config scheduler.sleep_start "23:00"
+metaclaw config scheduler.sleep_end   "07:00"
+metaclaw config scheduler.idle_threshold_minutes 30
+
+# Opcional: integración con Google Calendar
+pip install -e ".[scheduler]"
+metaclaw config scheduler.calendar.enabled true
+metaclaw config scheduler.calendar.credentials_path ~/.metaclaw/client_secrets.json
+```
+
+Tres condiciones activan una ventana de actualización (cualquiera es suficiente): horas de sueño configuradas, inactividad del teclado del sistema, o un evento activo de Google Calendar. Si el usuario regresa durante una actualización, el batch parcial se guarda y se retoma en la siguiente ventana.
+
+Cada `ConversationSample` se etiqueta con una versión `skill_generation`. Cuando la evolución de skills incrementa la generación, el buffer RL se vacía para que solo las muestras post-evolución se usen en las actualizaciones de gradiente (separación de conjuntos support/query MAML).
 
 ---
 

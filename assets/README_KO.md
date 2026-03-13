@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="logo.jpg" alt="MetaClaw" width="600">
+<img src="new_logo.png" alt="MetaClaw" width="600">
 
 <br/>
 
@@ -46,7 +46,8 @@ metaclaw start --mode skills_only  # 스킬만, RL 없음 (Tinker 불필요)
 
 ## 🔥 최신 소식
 
-- **[2026/03/11]** **v0.2** — `metaclaw` CLI를 통한 원클릭 배포. 스킬 주입 기본 활성화, RL은 선택 사항으로 변경.
+- **[2026/03/11]** **v0.3** — 메타러닝 스케줄러: RL 가중치 업데이트를 수면 시간, 유휴 시간, Google Calendar 회의 중에만 실행. MAML 방식의 support/query 집합 분리 추가.
+- **[2026/03/10]** **v0.2** — `metaclaw` CLI를 통한 원클릭 배포. 스킬 주입 기본 활성화, RL은 선택 사항으로 변경.
 - **[2026/03/09]** **MetaClaw** 공식 출시 — 에이전트와 대화하기만 하면 자동으로 진화. GPU 클러스터 불필요.
 
 ---
@@ -171,6 +172,27 @@ metaclaw start
 ```
 
 RL 모드에서는 각 대화 턴이 토크나이즈되어 학습 샘플로 제출되고, PRM이 비동기로 점수를 매기며, Tinker 클라우드가 LoRA 파인튜닝을 실행합니다.
+
+---
+
+## 🧠 고급: 메타러닝 스케줄러 (v0.3)
+
+RL 모드에서 가중치 핫스왑 단계는 에이전트를 수 분간 일시 중지시킵니다. 스케줄러(`auto` 모드에서 기본 활성화)는 RL 업데이트를 사용자 비활성 시간대로 연기하여 사용 중 중단을 방지합니다.
+
+```bash
+metaclaw config scheduler.sleep_start "23:00"
+metaclaw config scheduler.sleep_end   "07:00"
+metaclaw config scheduler.idle_threshold_minutes 30
+
+# 선택사항: Google Calendar 연동
+pip install -e ".[scheduler]"
+metaclaw config scheduler.calendar.enabled true
+metaclaw config scheduler.calendar.credentials_path ~/.metaclaw/client_secrets.json
+```
+
+세 가지 조건 중 하나라도 충족되면 업데이트 창이 열립니다: 설정된 수면 시간, 시스템 키보드 비활성, Google Calendar 이벤트 진행 중. 사용자가 업데이트 중 돌아오면 부분 배치가 저장되어 다음 창에서 재개됩니다.
+
+각 `ConversationSample`에는 `skill_generation` 버전이 태그됩니다. 스킬 진화로 세대가 변경되면 RL 버퍼가 플러시되어 진화 후 샘플만 그래디언트 업데이트에 사용됩니다 (MAML support/query 집합 분리).
 
 ---
 

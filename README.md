@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/logo.jpg" alt="MetaClaw" width="600">
+<img src="assets/new_logo.png" alt="MetaClaw" width="600">
 
 <br/>
 
@@ -297,67 +297,22 @@ See `examples/run_conversation_opd.py` for a programmatic example and `scripts/r
 
 ## 🧠 Advanced: Meta-Learning Scheduler (v0.3)
 
-### Motivation
-
-In RL mode, `save_weights_and_get_sampling_client` (the weight hot-swap step) pauses the agent for several minutes. Running this during active usage degrades the user experience. The `auto` mode (default since v0.3) enables the scheduler automatically.
-
-### How to enable
-
-The scheduler is enabled by default in `auto` mode. For manual control in `rl` mode, set config values directly:
+In RL mode, the weight hot-swap step pauses the agent for several minutes. The scheduler (enabled by default in `auto` mode) defers RL updates to user-inactive windows so the agent is never interrupted during active use.
 
 ```bash
-# Enable scheduler (already on in auto mode)
-metaclaw config scheduler.enabled true
 metaclaw config scheduler.sleep_start "23:00"
 metaclaw config scheduler.sleep_end   "07:00"
 metaclaw config scheduler.idle_threshold_minutes 30
 
-# Optional: Google Calendar (detect meeting windows)
+# Optional: Google Calendar integration
 pip install -e ".[scheduler]"
 metaclaw config scheduler.calendar.enabled true
 metaclaw config scheduler.calendar.credentials_path ~/.metaclaw/client_secrets.json
-metaclaw setup   # triggers Google Calendar device flow OAuth
 ```
 
-Once running in `auto` or `rl` mode with scheduler enabled, you can monitor it:
+Three conditions trigger an update window (any one is sufficient): configured sleep hours, system keyboard inactivity, or an active Google Calendar event. If the user returns mid-update, the partial batch is saved and resumed at the next window.
 
-```bash
-metaclaw status                 # shows scheduler state inline
-metaclaw scheduler status       # detailed state + sleep window + idle threshold
-metaclaw scheduler next-window  # explains when the next window will open
-```
-
-### Architecture
-
-The scheduler runs as an `asyncio` task alongside the trainer, checking conditions every 60 seconds:
-
-```
-IDLE_WAIT ──(sleep / idle / meeting)──► WINDOW_OPEN
-WINDOW_OPEN ──(trainer acks)──────────► UPDATING
-UPDATING ──(user becomes active)──────► PAUSING
-PAUSING ──(trainer stops)─────────────► IDLE_WAIT
-```
-
-When a window opens, the trainer collects a batch and runs `forward_backward → optim_step → save_weights`. If the user returns mid-collection, the partial batch is saved and resumed at the next window.
-
-### MAML support/query set separation
-
-MetaClaw v0.3 also fixes a subtle data leakage issue present in earlier versions:
-
-- **Inner loop** (skill evolution): analyzes failed samples and generates new skill files
-- **Outer loop** (RL update): updates model weights via gradient descent
-
-If the same failed samples are used for *both* loops, the RL gradient receives a stale negative signal for behavior that the new skills have already corrected. This is equivalent to violating the MAML principle that support set ≠ query set.
-
-**Fix**: Each `ConversationSample` is tagged with a `skill_generation` version number. When skill evolution adds new skills and bumps the generation counter, the RL sample buffer is immediately cleared. Only samples collected *after* the new skills are in place are used for the RL gradient update.
-
-```
-Session 1, 2, 3  →  skill evolution fires  →  new skills written
-                                               ↓
-                              stale samples discarded from RL buffer
-                                               ↓
-Session 4, 5, 6  →  fresh samples (with new skills injected)  →  RL update
-```
+Each `ConversationSample` is tagged with a `skill_generation` version. When skill evolution bumps the generation, the RL buffer is flushed so only post-evolution samples are used for gradient updates (MAML support/query set separation).
 
 ---
 
