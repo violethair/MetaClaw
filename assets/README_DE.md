@@ -46,7 +46,7 @@ metaclaw start --mode skills_only  # Nur Skills, kein RL (kein Tinker nötig)
 
 ## 🔥 Neuigkeiten
 
-- **[11.03.2026]** **v0.3** — Meta-Learning-Scheduler: RL-Gewichtsupdates laufen nur noch während Schlafenszeiten, Leerlaufphasen oder Google-Calendar-Meetings. MAML-inspirierte Support/Query-Set-Trennung hinzugefügt.
+- **[13.03.2026]** **v0.3** — Meta-Learning-Scheduler: RL-Gewichtsupdates laufen nur noch während Schlafenszeiten, Leerlaufphasen oder Google-Calendar-Meetings. MAML-inspirierte Support/Query-Set-Trennung hinzugefügt.
 - **[10.03.2026]** **v0.2** — Ein-Klick-Deployment über das `metaclaw` CLI. Skill-Injektion standardmäßig aktiviert, RL jetzt optional.
 - **[09.03.2026]** Offizieller Release von **MetaClaw** — Sprich mit deinem Agenten, er entwickelt sich automatisch weiter. Kein GPU-Cluster erforderlich.
 

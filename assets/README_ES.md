@@ -46,7 +46,7 @@ metaclaw start --mode skills_only  # solo skills, sin RL (no requiere Tinker)
 
 ## 🔥 Novedades
 
-- **[11/03/2026]** **v0.3** — Planificador de meta-aprendizaje: las actualizaciones RL solo se ejecutan durante horas de sueño, periodos de inactividad o reuniones de Google Calendar. Se agrega separación de conjuntos support/query estilo MAML.
+- **[13/03/2026]** **v0.3** — Planificador de meta-aprendizaje: las actualizaciones RL solo se ejecutan durante horas de sueño, periodos de inactividad o reuniones de Google Calendar. Se agrega separación de conjuntos support/query estilo MAML.
 - **[10/03/2026]** **v0.2** — Despliegue en un clic mediante el CLI `metaclaw`. Inyección de skills activada por defecto, RL ahora es opcional.
 - **[09/03/2026]** Lanzamiento oficial de **MetaClaw** — Habla con tu agente y deja que evolucione automáticamente. Sin cluster GPU requerido.
 

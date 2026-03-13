@@ -46,7 +46,7 @@ metaclaw start --mode skills_only  # 스킬만, RL 없음 (Tinker 불필요)
 
 ## 🔥 최신 소식
 
-- **[2026/03/11]** **v0.3** — 메타러닝 스케줄러: RL 가중치 업데이트를 수면 시간, 유휴 시간, Google Calendar 회의 중에만 실행. MAML 방식의 support/query 집합 분리 추가.
+- **[2026/03/13]** **v0.3** — 메타러닝 스케줄러: RL 가중치 업데이트를 수면 시간, 유휴 시간, Google Calendar 회의 중에만 실행. MAML 방식의 support/query 집합 분리 추가.
 - **[2026/03/10]** **v0.2** — `metaclaw` CLI를 통한 원클릭 배포. 스킬 주입 기본 활성화, RL은 선택 사항으로 변경.
 - **[2026/03/09]** **MetaClaw** 공식 출시 — 에이전트와 대화하기만 하면 자동으로 진화. GPU 클러스터 불필요.
 

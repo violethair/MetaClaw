@@ -45,7 +45,7 @@ metaclaw start --mode skills_only  # skills only, no RL (no Tinker needed)
 
 ## 🔥 News
 
-- **[03/11/2026]** **v0.3** — Meta-learning scheduler: slow RL updates now only run during sleep hours, idle time, or Google Calendar meetings. Added MAML-inspired support/query set separation to prevent stale reward signals from polluting model updates.
+- **[03/13/2026]** **v0.3** — Meta-learning scheduler: slow RL updates now only run during sleep hours, idle time, or Google Calendar meetings. Added MAML-inspired support/query set separation to prevent stale reward signals from polluting model updates.
 - **[03/10/2026]** **v0.2** — One-click deployment via `metaclaw` CLI. Skills enabled by default, RL is now opt-in.
 - **[03/09/2026]** We release **MetaClaw** — Just talk to your agent and let it evolve automatically. **NO** GPU deployment required; just plug into the **API**.
 

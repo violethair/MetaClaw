@@ -46,7 +46,7 @@ metaclaw start --mode skills_only  # 仅 Skills，无 RL（无需 Tinker）
 
 ## 🔥 最新动态
 
-- **[2026/03/11]** **v0.3** —— 元学习调度器：慢速 RL 更新仅在睡眠时间、空闲期间或 Google Calendar 会议期间运行。新增 MAML 风格的 support/query 集分离，防止过时的奖励信号污染模型更新。
+- **[2026/03/13]** **v0.3** —— 元学习调度器：慢速 RL 更新仅在睡眠时间、空闲期间或 Google Calendar 会议期间运行。新增 MAML 风格的 support/query 集分离，防止过时的奖励信号污染模型更新。
 - **[2026/03/10]** **v0.2** —— 发布 `metaclaw` CLI，支持一键部署。Skill 注入默认开启，RL 训练改为可选项。
 - **[2026/03/09]** 正式发布 **MetaClaw** —— 基于 Tinker 云端 LoRA 的 CLI Agent 在线 RL 训练框架，内置 Skill 注入与自动进化能力。
 
