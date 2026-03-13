@@ -6,6 +6,8 @@
 
 # エージェントと話すだけ — 学習し、*進化*する。
 
+<p>脳の学習メカニズムに着想を得て。あなたの 🦞 を日常の会話からメタ学習・進化させます。GPU不要。Kimi、Qwen、Claude、MiniMax など対応。</p>
+
 <p>
   <a href="https://github.com/aiming-lab/MetaClaw"><img src="https://img.shields.io/badge/github-MetaClaw-181717?style=flat&labelColor=555&logo=github&logoColor=white" alt="GitHub"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=flat&labelColor=555" alt="License MIT"></a>

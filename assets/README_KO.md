@@ -6,6 +6,8 @@
 
 # 에이전트와 대화하기만 하면 됩니다 — 학습하고 *진화*합니다.
 
+<p>뇌의 학습 방식에서 영감을 받았습니다. 모든 대화에서 🦞 를 메타학습하고 진화시킵니다. GPU 불필요. Kimi, Qwen, Claude, MiniMax 등 지원.</p>
+
 <p>
   <a href="https://github.com/aiming-lab/MetaClaw"><img src="https://img.shields.io/badge/github-MetaClaw-181717?style=flat&labelColor=555&logo=github&logoColor=white" alt="GitHub"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=flat&labelColor=555" alt="License MIT"></a>

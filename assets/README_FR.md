@@ -6,6 +6,8 @@
 
 # Parlez simplement à votre agent — il apprend et *ÉVOLUE*.
 
+<p>Inspiré par l'apprentissage du cerveau. Méta-apprenez et faites évoluer votre 🦞 à partir de chaque conversation. Sans GPU. Compatible Kimi, Qwen, Claude, MiniMax, et plus.</p>
+
 <p>
   <a href="https://github.com/aiming-lab/MetaClaw"><img src="https://img.shields.io/badge/github-MetaClaw-181717?style=flat&labelColor=555&logo=github&logoColor=white" alt="GitHub"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=flat&labelColor=555" alt="License MIT"></a>

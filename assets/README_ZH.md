@@ -6,6 +6,8 @@
 
 # 只需与你的 Agent 对话 —— 它会不断学习，持续进化。
 
+<p>受大脑学习方式启发。让你的 🦞 在真实对话中持续元学习与进化。无需 GPU。支持 Kimi、Qwen、Claude、MiniMax 等。</p>
+
 <p>
   <a href="https://github.com/aiming-lab/MetaClaw"><img src="https://img.shields.io/badge/github-MetaClaw-181717?style=flat&labelColor=555&logo=github&logoColor=white" alt="GitHub"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=flat&labelColor=555" alt="License MIT"></a>
