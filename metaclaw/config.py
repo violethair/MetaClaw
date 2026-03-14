@@ -101,6 +101,7 @@ class MetaClawConfig:
     # "rl"          — v0.2: RL without scheduler (trains immediately on full batch)
     # "skills_only" — proxy + skill injection only (no Tinker, no RL)
     mode: str = "madmax"
+    configure_openclaw: bool = True  # set to False for standalone deployment
 
     # ------------------------------------------------------------------ #
     # Scheduler (meta-learning: gate slow RL updates to idle windows)     #

@@ -23,6 +23,7 @@ _DEFAULTS: dict = {
         "api_key": "",
     },
     "proxy": {"port": 30000, "host": "0.0.0.0", "api_key": ""},
+    "configure_openclaw": True,
     "skills": {
         "enabled": True,
         "dir": str(Path.home() / ".metaclaw" / "skills"),
@@ -149,6 +150,7 @@ class ConfigStore:
         sched = data.get("scheduler", {})
         sched_cal = sched.get("calendar", {})
         mode = data.get("mode", "madmax")
+        configure_openclaw = bool(data.get("configure_openclaw", True))
         rl_enabled = mode in ("rl", "madmax") or bool(rl.get("enabled", False))
 
         # Evolver: prefer rl.evolver_*, fallback to llm.*
@@ -214,6 +216,7 @@ class ConfigStore:
                 sched_cal.get("token_path", "")
                 or str(Path.home() / ".metaclaw" / "calendar_token.json")
             ),
+            configure_openclaw=configure_openclaw,
         )
 
     def describe(self) -> str:

@@ -138,8 +138,9 @@ class MetaClawLauncher:
 
         logger.info("[Launcher] proxy ready at http://%s:%d", cfg.proxy_host, cfg.proxy_port)
 
-        # Configure openclaw to point at the proxy
-        self._configure_openclaw(cfg)
+        # Configure openclaw to point at the proxy (skip for standalone deployments)
+        if cfg.configure_openclaw:
+            self._configure_openclaw(cfg)
 
         # Keep running until stopped
         while not self._stop_event.is_set():
@@ -213,8 +214,9 @@ class MetaClawLauncher:
         )
 
         # Configure openclaw once the proxy is about to be ready
-        await asyncio.sleep(3)
-        self._configure_openclaw(cfg)
+        if cfg.configure_openclaw:
+            await asyncio.sleep(3)
+            self._configure_openclaw(cfg)
 
         tasks = [asyncio.create_task(trainer.run())]
         if scheduler is not None:
