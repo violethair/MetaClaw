@@ -1,8 +1,6 @@
 <div align="center">
 
-<img src="assets/new_logo.png" alt="MetaClaw" width="600">
-
-<br/>
+<img src="assets/new_logo.png" alt="MetaClaw" width="500">
 
 # Just talk to your agent — it learns and *EVOLVES*.
 
