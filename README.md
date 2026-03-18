@@ -11,7 +11,7 @@
 <br/>
 
 
-<img src="assets/metaclaw_mainfig.png" alt="MetaClaw Architecture" width="800">
+<img src="assets/metaclaw_mainfig_v2.png" alt="MetaClaw Architecture" width="800">
 
 <br/>
 
