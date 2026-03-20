@@ -23,12 +23,6 @@ rl = [
     "transformers>=4.51.1",
     "tinker",
 ]
-# RL training via Weaver backend
-rl-weaver = [
-    "torch",
-    "transformers>=4.51.1",
-    "nex-weaver",
-]
 # Embedding-based skill retrieval
 embedding = [
     "numpy",
@@ -50,7 +44,7 @@ scheduler = [
 ]
 # Everything
 all = [
-    "metaclaw[rl,rl-weaver,embedding,evolve,wandb,scheduler]",
+    "metaclaw[rl,embedding,evolve,wandb,scheduler]",
 ]
 
 [project.scripts]
