@@ -1,7 +1,9 @@
 /**
- * MetaClaw OpenClaw extension: inject X-Session-Id / X-Turn-Type on LLM fetch (vanilla OpenClaw does not);
- * by default creates a Python venv, runs `pip install` inside it, and uses the venv for all MetaClaw commands.
- * Use `oneClickMetaclaw: true` for venv + pip + default config + `metaclaw start`.
+ * MetaClaw OpenClaw extension:
+ *   1. Inject X-Session-Id / X-Turn-Type on LLM fetch
+ *   2. Register WeChat as an OpenClaw channel so messages flow through the
+ *      gateway pipeline (slash commands, skills, routing) before hitting the LLM
+ *   3. Create a Python venv, run `pip install`, and optionally `metaclaw start`
  */
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -37,8 +39,6 @@ type MetaClawPluginConfig = {
   bootstrapMetaclawConfig: boolean;
   /** Path to the venv directory. Default: `.venv` inside the plugin directory. */
   venvPath: string;
-  /** Override path to the wechat_node directory. Default: auto-detected from venv's metaclaw package. */
-  wechatNodeDir: string;
 };
 
 /** Resolve the Python binary inside a venv (cross-platform). */
@@ -122,7 +122,6 @@ function resolveConfig(api: OpenClawPluginApi): MetaClawPluginConfig {
     metaclawStartArgs,
     bootstrapMetaclawConfig,
     venvPath: venvDir,
-    wechatNodeDir: cfg.wechatNodeDir?.trim() || "",
   };
 }
 
@@ -538,77 +537,42 @@ function runVenvSetupThenMaybeStart(api: OpenClawPluginApi, full: MetaClawPlugin
   });
 }
 
-// ─── WeChat bridge auto-install ─────────────────────────────────────
+// ─── WeChat official plugin auto-install ─────────────────────────────
+// Install the official @tencent-weixin/openclaw-weixin plugin so that
+// WeChat is a native OpenClaw channel (same pipeline as Telegram/Slack).
+// This replaces the old weixin-agent-sdk bridge approach.
+
+const WEIXIN_PLUGIN_DIR = path.join(os.homedir(), ".openclaw", "extensions", "openclaw-weixin");
 
 /**
- * Locate the wechat_node directory.
- * Priority: explicit config → auto-detect from venv's metaclaw package → fallback relative to PLUGIN_DIR.
+ * Auto-install the official Tencent WeChat plugin for OpenClaw.
+ * Uses `npx @tencent-weixin/openclaw-weixin-cli@latest install`.
+ * Runs in the background — does not block plugin registration.
  */
-function resolveWechatNodeDir(api: OpenClawPluginApi, full: MetaClawPluginConfig): string | null {
-  // 1. Explicit user config
-  if (full.wechatNodeDir) {
-    if (fs.existsSync(path.join(full.wechatNodeDir, "package.json"))) {
-      return full.wechatNodeDir;
-    }
-    api.logger.warn(`metaclaw-openclaw: wechatNodeDir not valid — skipping WeChat`);
-    return null;
-  }
-
-  // 2. Auto-detect from venv
-  const venvPy = venvPython(full.venvPath);
-  if (fs.existsSync(venvPy)) {
-    const result = spawnSync(venvPy, [
-      "-c",
-      "import metaclaw, os; print(os.path.join(os.path.dirname(metaclaw.__file__), 'wechat_node'))",
-    ], { encoding: "utf8", timeout: 15_000 });
-    if (result.status === 0) {
-      const detected = result.stdout.trim();
-      if (detected && fs.existsSync(path.join(detected, "package.json"))) {
-        return detected;
-      }
-    }
-  }
-
-  // 3. Fallback: relative to plugin dir (dev layout)
-  for (const rel of ["../../metaclaw/wechat_node", "../wechat_node"]) {
-    const resolved = path.resolve(PLUGIN_DIR, rel);
-    if (fs.existsSync(path.join(resolved, "package.json"))) {
-      return resolved;
-    }
-  }
-
-  return null;
-}
-
-/**
- * Auto-install WeChat bridge dependencies (npm install in wechat_node).
- * Runs silently — only logs on error or final result.
- */
-function autoInstallWechatBridge(api: OpenClawPluginApi, full: MetaClawPluginConfig): void {
-  const wechatDir = resolveWechatNodeDir(api, full);
-  if (!wechatDir) {
-    return; // wechat_node not found — skip silently
-  }
-
+function autoInstallWechatBridge(api: OpenClawPluginApi, _full: MetaClawPluginConfig): void {
   // Already installed — skip
-  if (fs.existsSync(path.join(wechatDir, "node_modules", "weixin-agent-sdk"))) {
+  if (fs.existsSync(path.join(WEIXIN_PLUGIN_DIR, "package.json"))) {
+    api.logger.debug?.("metaclaw-openclaw: openclaw-weixin plugin already installed");
     return;
   }
 
-  // Check node is available
-  const nodeCheck = spawnSync("node", ["--version"], { encoding: "utf8", timeout: 10_000 });
-  if (nodeCheck.error || nodeCheck.status !== 0) {
-    api.logger.warn("metaclaw-openclaw: WeChat bridge skipped — Node.js not found (need ≥ 22)");
+  // Check npx is available
+  const npxCmd = process.platform === "win32" ? "npx.cmd" : "npx";
+  const npxCheck = spawnSync(npxCmd, ["--version"], { encoding: "utf8", timeout: 10_000 });
+  if (npxCheck.error || npxCheck.status !== 0) {
+    api.logger.warn(
+      "metaclaw-openclaw: npx not found — install Node.js ≥ 18 to enable WeChat. " +
+      "Or run manually: npx -y @tencent-weixin/openclaw-weixin-cli@latest install",
+    );
     return;
   }
 
-  api.logger.info("metaclaw-openclaw: installing WeChat bridge dependencies…");
+  api.logger.info("metaclaw-openclaw: installing official WeChat plugin (openclaw-weixin)…");
 
-  const npm = spawn(
-    process.platform === "win32" ? "npm.cmd" : "npm",
-    ["install", "--production"],
+  const child = spawn(
+    npxCmd,
+    ["-y", "@tencent-weixin/openclaw-weixin-cli@latest", "install"],
     {
-      cwd: wechatDir,
       shell: process.platform === "win32",
       stdio: ["ignore", "pipe", "pipe"],
       env: { ...process.env },
@@ -616,26 +580,35 @@ function autoInstallWechatBridge(api: OpenClawPluginApi, full: MetaClawPluginCon
   );
 
   let errTail = "";
-  npm.stderr?.on("data", (chunk: Buffer) => {
+  child.stderr?.on("data", (chunk: Buffer) => {
     errTail = (errTail + chunk.toString()).slice(-2000);
   });
-  // stdout: swallow silently (concise output)
-  npm.stdout?.on("data", () => {});
+  child.stdout?.on("data", () => {});
 
-  npm.on("error", (err) => {
-    api.logger.warn(`metaclaw-openclaw: WeChat npm install failed (${String(err)})`);
+  child.on("error", (err) => {
+    api.logger.warn(`metaclaw-openclaw: openclaw-weixin install failed (${String(err)})`);
   });
 
-  npm.on("close", (code) => {
+  child.on("close", (code) => {
     if (code === 0) {
       api.logger.info(
-        "metaclaw-openclaw: WeChat bridge ready — run `metaclaw config wechat.enabled true` then `metaclaw start`",
+        "metaclaw-openclaw: openclaw-weixin installed ✓ — " +
+        "scan QR code in OpenClaw UI or run: openclaw channels login --channel openclaw-weixin",
       );
     } else {
-      api.logger.warn(`metaclaw-openclaw: WeChat npm install exited ${code}`);
+      api.logger.warn(
+        `metaclaw-openclaw: openclaw-weixin install exited ${code}. ` +
+        `Run manually: npx -y @tencent-weixin/openclaw-weixin-cli@latest install`,
+      );
+      if (errTail) api.logger.warn(`  stderr: ${errTail.slice(-500)}`);
     }
   });
 }
+
+// ─── WeChat ──────────────────────────────────────────────────────────
+// WeChat is handled by the official @tencent-weixin/openclaw-weixin plugin,
+// which is auto-installed by autoInstallWechatBridge() above.
+// The custom ChannelPlugin + bridge.mjs code has been removed.
 
 /**
  * Ensure this plugin is trusted in OpenClaw config:
@@ -683,6 +656,11 @@ export default function register(api: OpenClawPluginApi): void {
   // Prevent duplicate install when register() is called multiple times per process
   if (_registered) return;
   _registered = true;
+
+  // NOTE: WeChat channel is now handled by the official @tencent-weixin/openclaw-weixin-cli
+  // plugin. Our custom setupWechatGatewayChannel() has been retired to avoid conflicts.
+  // The bridge.mjs + dispatchInboundDirectDmWithRuntime code is kept in the file for
+  // reference but is no longer called.
 
   runVenvSetupThenMaybeStart(api, full);
 

@@ -77,7 +77,6 @@ _DEFAULTS: dict = {
     },
     "wechat": {
         "enabled": False,
-        "bridge_dir": "",
     },
 }
 
@@ -293,9 +292,8 @@ class ConfigStore:
                 sched_cal.get("token_path", "")
                 or str(Path.home() / ".metaclaw" / "calendar_token.json")
             ),
-            # WeChat (Node bridge)
+            # WeChat (official openclaw-weixin plugin)
             wechat_enabled=_yaml_bool(wx.get("enabled"), False),
-            wechat_bridge_dir=str(wx.get("bridge_dir", "") or ""),
         )
 
     def describe(self) -> str:

@@ -8,9 +8,7 @@ Usage:
     metaclaw status         — check whether MetaClaw is running
     metaclaw config KEY VAL — set a config value (e.g. rl.enabled true)
     metaclaw config show    — show current config
-    metaclaw wechat-bridge   — run WeChat bridge (Node) to local proxy
-    metaclaw wechat-relogin  — same bridge, but force QR (switch WeChat account)
-    metaclaw wechat-check    — diagnose WeChat config / node / npm deps
+    (WeChat is now handled by the official openclaw-weixin plugin)
 """
 
 from __future__ import annotations
@@ -57,7 +55,13 @@ def setup():
     default=None,
     help="Path to a custom config YAML file (default: ~/.metaclaw/config.yaml).",
 )
-def start(mode: str | None, port: int | None, config: str | None):
+@click.option(
+    "--wechat-relogin",
+    is_flag=True,
+    default=False,
+    help="Force WeChat QR re-login (switch account).",
+)
+def start(mode: str | None, port: int | None, config: str | None, wechat_relogin: bool):
     """Start MetaClaw (proxy + optional RL training)."""
     import asyncio
     from pathlib import Path
@@ -92,6 +96,49 @@ def start(mode: str | None, port: int | None, config: str | None):
         yaml.dump(data, tmp)
         tmp.close()
         cs = _CS(config_file=Path(tmp.name))
+
+    if wechat_relogin:
+        click.echo("[MetaClaw] Forcing WeChat re-login (switch account)…")
+        import subprocess as _sp
+        import re as _re
+        _qr_pass = _re.compile(
+            r"▄|█|▀|二维码|QR|扫码|scan|连接成功|connected|等待连接|waiting"
+            r"|https://liteapp\.weixin\.qq\.com",
+            _re.IGNORECASE,
+        )
+        _zh_to_en = {
+            "正在启动微信扫码登录...": "Starting WeChat QR login...",
+            "使用微信扫描以下二维码，以完成连接：": "Scan the QR code below with WeChat to connect:",
+            "如果二维码未能成功展示，请用浏览器打开以下链接扫码：": "If the QR code doesn't display, open this link in a browser:",
+            "等待连接结果...": "Waiting for connection...",
+            "与微信连接成功！": "WeChat connected successfully!",
+        }
+        def _translate_line(line: str) -> str:
+            stripped = line.strip()
+            for zh, en in _zh_to_en.items():
+                if zh in stripped:
+                    return line.replace(zh, en)
+            return line
+        try:
+            proc = _sp.Popen(
+                ["openclaw", "channels", "login", "--channel", "openclaw-weixin"],
+                stdout=_sp.PIPE,
+                stderr=_sp.STDOUT,
+                text=True,
+            )
+            for line in proc.stdout:
+                if _qr_pass.search(line):
+                    print(_translate_line(line), end="", flush=True)
+            proc.wait(timeout=300)
+        except FileNotFoundError:
+            click.echo("Error: 'openclaw' not found in PATH.", err=True)
+        except _sp.TimeoutExpired:
+            click.echo("WeChat login timed out (300s).", err=True)
+        except Exception as e:
+            click.echo(f"WeChat login error: {e}", err=True)
+        # Ensure plugins.allow + load.paths are set after login
+        from .launcher import MetaClawLauncher as _ML
+        _ML._ensure_openclaw_weixin_allow()
 
     from .launcher import MetaClawLauncher
     launcher = MetaClawLauncher(cs)
@@ -225,136 +272,6 @@ def status(config: str | None, port: int | None):
             pass
 
 
-@metaclaw.command("wechat-bridge")
-@click.option(
-    "-c", "--config",
-    type=click.Path(exists=True),
-    default=None,
-    help="Config YAML (default: ~/.metaclaw/config.yaml).",
-)
-def wechat_bridge_cmd(config: str | None):
-    """Run the WeChat personal bridge (Node + weixin-agent-sdk) against the local proxy.
-
-    Reuses a saved session under ``~/.openclaw/openclaw-weixin`` when possible.
-    To scan QR again (e.g. switch account), use ``metaclaw wechat-relogin``.
-
-    Requires: Node.js, and ``npm install`` in the package ``wechat_node`` directory.
-    Start ``metaclaw start`` first so /v1 is available.
-    """
-    from pathlib import Path
-
-    from .log_color import setup_logging
-    from .wechat_bridge import spawn_wechat_bridge
-
-    setup_logging()
-    if config:
-        cs = ConfigStore(config_file=Path(config))
-    else:
-        cs = ConfigStore()
-    if not cs.exists():
-        click.echo("No config found. Run 'metaclaw setup' first.", err=True)
-        sys.exit(1)
-    cfg = cs.to_metaclaw_config()
-    proc = spawn_wechat_bridge(cfg)
-    if proc is None:
-        sys.exit(1)
-    try:
-        proc.wait()
-    except KeyboardInterrupt:
-        proc.terminate()
-        click.echo("\nWeChat bridge stopped.")
-
-
-@metaclaw.command("wechat-relogin")
-@click.option(
-    "-c", "--config",
-    type=click.Path(exists=True),
-    default=None,
-    help="Config YAML (default: ~/.metaclaw/config.yaml).",
-)
-def wechat_relogin_cmd(config: str | None):
-    """Force a QR login to switch WeChat account, save the session, then exit.
-
-    After scanning, ``metaclaw start`` will pick up the new session automatically.
-    """
-    from pathlib import Path
-
-    from .log_color import setup_logging
-    from .wechat_bridge import spawn_wechat_bridge
-
-    setup_logging()
-    if config:
-        cs = ConfigStore(config_file=Path(config))
-    else:
-        cs = ConfigStore()
-    if not cs.exists():
-        click.echo("No config found. Run 'metaclaw setup' first.", err=True)
-        sys.exit(1)
-    cfg = cs.to_metaclaw_config()
-    proc = spawn_wechat_bridge(cfg, login_only=True)
-    if proc is None:
-        sys.exit(1)
-    try:
-        ret = proc.wait()
-    except KeyboardInterrupt:
-        proc.terminate()
-        click.echo("\nWeChat login cancelled.")
-        sys.exit(1)
-    if ret == 0:
-        click.echo("WeChat session saved. Run 'metaclaw start' to go online.")
-    else:
-        click.echo(f"WeChat login exited with code {ret}.", err=True)
-        sys.exit(ret)
-
-
-@metaclaw.command("wechat-check")
-@click.option(
-    "-c", "--config",
-    type=click.Path(exists=True),
-    default=None,
-    help="Config YAML (default: ~/.metaclaw/config.yaml).",
-)
-def wechat_check_cmd(config: str | None):
-    """Print WeChat bridge diagnostics (config, paths, node, npm deps)."""
-    import shutil
-    from pathlib import Path
-
-    from .wechat_bridge import wechat_bridge_dependency_issues
-
-    if config:
-        cs = ConfigStore(config_file=Path(config))
-    else:
-        cs = ConfigStore()
-    if not cs.exists():
-        click.echo("No config found. Run 'metaclaw setup' first.", err=True)
-        sys.exit(1)
-    cfg = cs.to_metaclaw_config()
-    raw = cs.load().get("wechat", {})
-    root, dep_issues = wechat_bridge_dependency_issues(cfg)
-    bridge = root / "bridge.mjs"
-    sdk = root / "node_modules" / "weixin-agent-sdk"
-    node = shutil.which("node")
-
-    click.echo(f"wechat.enabled (resolved): {cfg.wechat_enabled}")
-    click.echo(f"wechat.enabled (raw in YAML): {raw.get('enabled', '(missing)')!r}")
-    click.echo(f"bridge_dir: {root}")
-    click.echo(f"bridge.mjs exists: {bridge.is_file()}")
-    click.echo(f"weixin-agent-sdk installed: {sdk.is_dir()}")
-    click.echo(f"node on PATH: {node or '(not found)'}")
-    click.echo(f"proxy port: {cfg.proxy_port}")
-    click.echo(f"METACLAW_MODEL would be: {cfg.llm_model_id or cfg.served_model_name or 'metaclaw-model'!r}")
-
-    if not cfg.wechat_enabled:
-        click.echo("\n→ Enable: metaclaw config wechat.enabled true", err=True)
-    for line in dep_issues:
-        click.echo(f"\n→ {line}", err=True)
-    if not node:
-        click.echo("\n→ Install Node.js and ensure `node` is on PATH", err=True)
-
-    ok = cfg.wechat_enabled and not dep_issues and bool(node)
-    sys.exit(0 if ok else 1)
-
-
 @metaclaw.command(name="train-step")
 @click.option(
     "--port",
@@ -433,8 +350,7 @@ def config_cmd(key_or_action: str, value: str | None):
       metaclaw config show\n
       metaclaw config rl.enabled true\n
       metaclaw config proxy.port 30001\n
-      metaclaw config wechat.enabled true\n
-      metaclaw config wechat.bridge_dir /path/to/custom/wechat_node
+      metaclaw config wechat.enabled true
     """
     cs = ConfigStore()
     if key_or_action == "show":

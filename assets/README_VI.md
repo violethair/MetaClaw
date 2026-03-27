@@ -119,22 +119,18 @@ pip install -e ".[evolve]"              # + tien hoa Skill qua LLM tuong thich O
 pip install -e ".[scheduler]"           # + tich hop Google Calendar cho bo lap lich
 pip install -e ".[rl,evolve,scheduler]" # khuyen nghi: cau hinh day du RL + bo lap lich
 ```
-(Tùy chọn) Cầu tài khoản cá nhân WeChat (cần [Node.js](https://nodejs.org/) trong PATH; SDK khuyến nghị ≥ 22).
-
-- Nếu cài bằng **plugin OpenClaw một cú nhấp**, phụ thuộc Node cho WeChat được cài tự động.
-- Nếu cài bằng **pip**, sau `pip install` hãy cài phụ thuộc Node một lần:
-
-```bash
-cd metaclaw/wechat_node && npm install
-```
-
-Sau đó bật WeChat:
+(Tùy chọn) Tích hợp WeChat sử dụng plugin chính thức @tencent-weixin/openclaw-weixin. MetaClaw tự động cài đặt nó khi WeChat được bật:
 
 ```bash
 metaclaw config wechat.enabled true
+metaclaw start
 ```
 
-Nếu đặt `wechat.bridge_dir` trong cấu hình, chạy `npm install` trong thư mục đó. Hướng dẫn đầy đủ (đăng nhập QR, đăng nhập lại, xử lý sự cố): [`metaclaw/wechat_node/README.md`](../metaclaw/wechat_node/README.md).
+Plugin được cài đặt tự động khi bắt đầu MetaClaw. Bạn cũng có thể cài đặt nó theo cách thủ công:
+
+```bash
+npx -y @tencent-weixin/openclaw-weixin-cli@latest install
+```
 
 Neu ban muon su dung `rl.backend=mint`, hay cai dat goi tuong thich MinT rieng trong cung moi truong, vi du [`mindlab-toolkit`](https://github.com/MindLab-Research/mindlab-toolkit). Neu ban muon su dung `rl.backend=weaver`, hay cai dat [`nex-weaver`](https://github.com/nex-agi/weaver) rieng. MetaClaw khong dua cac phu thuoc nay vao goi mac dinh de nguoi dung RL co the chon ro rang Tinker, MinT hoac Weaver.
 

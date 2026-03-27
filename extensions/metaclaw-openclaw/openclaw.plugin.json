@@ -47,10 +47,6 @@
       "venvPath": {
         "type": "string",
         "description": "Path to the venv directory. Default: .metaclaw inside the plugin directory."
-      },
-      "wechatNodeDir": {
-        "type": "string",
-        "description": "Override path to the wechat_node directory. Default: auto-detected from the pip-installed metaclaw package."
       }
     }
   }

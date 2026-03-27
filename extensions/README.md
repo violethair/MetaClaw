@@ -43,7 +43,7 @@ metaclaw start
 
 - Creates an isolated Python virtual environment (`.venv`)
 - Installs MetaClaw (`[rl,evolve,scheduler]`) via pip
-- Installs WeChat bridge dependencies (`npm install` in `wechat_node`)
+- Auto-installs the official WeChat plugin (`@tencent-weixin/openclaw-weixin`) when enabled
 - Installs `metaclaw` CLI wrapper and configures PATH (macOS / Linux / Windows)
 - Patches outbound LLM `fetch` to inject `X-Session-Id` / `X-Turn-Type` headers
 

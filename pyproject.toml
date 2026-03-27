@@ -55,11 +55,7 @@ where = ["."]
 include = ["metaclaw*"]
 
 [tool.setuptools.package-data]
-metaclaw = [
-    "wechat_node/package.json",
-    "wechat_node/bridge.mjs",
-    "wechat_node/README.md",
-]
+metaclaw = []
 
 [tool.ruff]
 line-length = 120

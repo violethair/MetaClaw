@@ -119,22 +119,18 @@ pip install -e ".[evolve]"              # + 通过 OpenAI 兼容 LLM 进行 Skil
 pip install -e ".[scheduler]"           # + Google Calendar 调度器集成
 pip install -e ".[rl,evolve,scheduler]" # 推荐：完整 RL + 调度器配置
 ```
-（可选）微信个人号桥接（需本机 [Node.js](https://nodejs.org/) 在 PATH 中可用，SDK 建议 ≥ 22）。
-
-- 若通过 **OpenClaw 一键插件**安装，微信相关 Node 依赖会自动安装。
-- 若通过 **pip** 安装，请在 `pip install` 之后执行一次 Node 依赖安装：
-
-```bash
-cd metaclaw/wechat_node && npm install
-```
-
-然后启用微信：
+（可选）微信集成使用官方 @tencent-weixin/openclaw-weixin 插件。启用微信时，MetaClaw 会自动安装该插件：
 
 ```bash
 metaclaw config wechat.enabled true
+metaclaw start
 ```
 
-若在配置中设置了 `wechat.bridge_dir`，请在该目录执行 `npm install`。完整说明（扫码登录、重新登录、排错）见 [`metaclaw/wechat_node/README.md`](../metaclaw/wechat_node/README.md)。
+该插件在 `metaclaw start` 时自动安装。你也可以手动安装：
+
+```bash
+npx -y @tencent-weixin/openclaw-weixin-cli@latest install
+```
 
 如果你要使用 `rl.backend=mint`,请在同一环境里额外安装 MinT 兼容包,例如 [`mindlab-toolkit`](https://github.com/MindLab-Research/mindlab-toolkit)。如果你要使用 `rl.backend=weaver`,请另行安装 [`nex-weaver`](https://github.com/nex-agi/weaver)。MetaClaw 不会把这些依赖放进默认安装中,这样 RL 用户可以明确选择 Tinker、MinT 或 Weaver。
 

@@ -168,7 +168,6 @@ class MetaClawConfig:
     skill_evolution_history_path: str = "memory_data/skills/evolution_history.jsonl"
 
     # ------------------------------------------------------------------ #
-    # WeChat personal (Node weixin-agent-sdk bridge → proxy)             #
+    # WeChat (official openclaw-weixin plugin, auto-installed)           #
     # ------------------------------------------------------------------ #
     wechat_enabled: bool = False
-    wechat_bridge_dir: str = ""             # optional override; default: package wechat_node/

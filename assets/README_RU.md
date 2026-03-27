@@ -119,22 +119,18 @@ pip install -e ".[evolve]"              # + эволюция навыков че
 pip install -e ".[scheduler]"           # + интеграция с Google Calendar для планировщика
 pip install -e ".[rl,evolve,scheduler]" # рекомендуется для полной конфигурации RL + планировщик
 ```
-(Необязательно) Мост для личного аккаунта WeChat (нужен [Node.js](https://nodejs.org/) в PATH; SDK рекомендует ≥ 22).
-
-- При установке через **плагин OpenClaw в один клик** зависимости Node для WeChat ставятся автоматически.
-- При установке через **pip** после `pip install` один раз установите зависимости Node:
-
-```bash
-cd metaclaw/wechat_node && npm install
-```
-
-Затем включите WeChat:
+(Необязательно) Интеграция WeChat использует официальный плагин @tencent-weixin/openclaw-weixin. MetaClaw автоматически устанавливает его при включении WeChat:
 
 ```bash
 metaclaw config wechat.enabled true
+metaclaw start
 ```
 
-Если в конфигурации задан `wechat.bridge_dir`, выполните `npm install` в этой папке. Полная инструкция (вход по QR, повторный вход, устранение неполадок): [`metaclaw/wechat_node/README.md`](../metaclaw/wechat_node/README.md).
+Плагин устанавливается автоматически при запуске MetaClaw. Вы также можете установить его вручную:
+
+```bash
+npx -y @tencent-weixin/openclaw-weixin-cli@latest install
+```
 
 Если вы хотите использовать `rl.backend=mint`, установите пакет совместимости MinT отдельно в том же окружении, например [`mindlab-toolkit`](https://github.com/MindLab-Research/mindlab-toolkit). Для `rl.backend=weaver` отдельно установите [`nex-weaver`](https://github.com/nex-agi/weaver). MetaClaw не включает эти зависимости в пакет по умолчанию, чтобы пользователи RL могли явно выбирать между Tinker, MinT и Weaver.
 
