@@ -369,10 +369,17 @@ def _convert_openai_to_anthropic(openai_body: dict[str, Any]) -> tuple[dict[str,
     system_message = "\n\n".join(system_parts) if system_parts else ""
 
     # Build Anthropic request body
+    # For models that support thinking (e.g. Opus), use higher max_tokens
+    # because the upstream proxy may auto-inject thinking budget
+    requested_max = openai_body.get("max_tokens", 4096)
+    model_name = openai_body.get("model", "").lower()
+    if "opus" in model_name and requested_max < 16000:
+        requested_max = 16000
+    
     anthropic_body = {
         "model": openai_body.get("model", ""),
         "messages": anthropic_messages,
-        "max_tokens": openai_body.get("max_tokens", 4096),
+        "max_tokens": requested_max,
     }
 
     # Optional parameters
