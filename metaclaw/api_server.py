@@ -285,82 +285,92 @@ def _extract_tool_calls_from_text(text: str) -> tuple[str, list[dict], str]:
     return clean, tool_calls, reasoning_content
 
 
-def _normalize_tool_calls_for_template(tool_calls: list) -> list[dict]:
-    """Ensure tool_calls are plain OpenAI-compatible dicts with string arguments.
-
-    Handles cases where function.arguments is a dict instead of a JSON string,
-    or where individual tool_call entries are non-dict objects (e.g. Pydantic models).
+def _convert_openai_to_anthropic(openai_body: dict[str, Any]) -> tuple[dict[str, Any], str]:
     """
-    normalized: list[dict] = []
-    for i, tc in enumerate(tool_calls):
-        if not isinstance(tc, dict):
-            try:
-                tc = dict(tc)  # type: ignore[call-overload]
-            except Exception:
-                continue
-        func = tc.get("function")
-        if func is None:
-            continue
-        if not isinstance(func, dict):
-            try:
-                func = dict(func)  # type: ignore[call-overload]
-            except Exception:
-                func = {"name": str(func), "arguments": "{}"}
-        else:
-            func = dict(func)  # shallow copy so we don't mutate original
-        args = func.get("arguments")
-        if not isinstance(args, str):
-            func["arguments"] = json.dumps(args, ensure_ascii=False) if args is not None else "{}"
-        normalized.append({
-            "id": tc.get("id") or f"call_{i}",
-            "type": tc.get("type", "function"),
-            "function": func,
-        })
-    return normalized
+    Convert OpenAI chat completion request to Anthropic Messages API format.
 
-
-def _normalize_tools_for_template(tools) -> list | None:
-    """Convert tools from Anthropic format to OpenAI format expected by chat templates.
-
-    Anthropic format:  {"name": ..., "description": ..., "input_schema": {...}}
-    OpenAI format:     {"type": "function", "function": {"name": ..., "parameters": {...}}}
-
-    The Qwen3 (and other) chat templates use ``tool.function.parameters | items``
-    which raises TypeError if the tool is in Anthropic format.
+    Returns:
+        (anthropic_body, system_message)
     """
-    if not tools:
-        return tools
-    out: list[dict] = []
-    for tool in tools:
-        if not isinstance(tool, dict):
-            out.append(tool)
-            continue
-        # Already in OpenAI format
-        if tool.get("type") == "function" and "function" in tool:
-            func = tool["function"]
-            if isinstance(func, dict):
-                out.append(tool)
-            else:
-                out.append(tool)
-            continue
-        # Anthropic format: top-level name + input_schema
-        name = tool.get("name") or ""
-        if name:
-            out.append({
-                "type": "function",
-                "function": {
-                    "name": name,
-                    "description": tool.get("description", ""),
-                    "parameters": (
-                        tool.get("input_schema")
-                        or tool.get("parameters")
-                        or {"type": "object", "properties": {}}
-                    ),
-                },
+    messages = openai_body.get("messages", [])
+
+    # Extract system message
+    system_parts = []
+    anthropic_messages = []
+
+    for msg in messages:
+        role = msg.get("role", "user")
+        content = msg.get("content", "")
+
+        if role == "system":
+            system_parts.append(content)
+        elif role == "assistant":
+            anthropic_messages.append({
+                "role": "assistant",
+                "content": content,
             })
-        else:
-            out.append(tool)
-    return out
+        else:  # user or other roles treated as user
+            anthropic_messages.append({
+                "role": "user",
+                "content": content,
+            })
+
+    system_message = "\n\n".join(system_parts) if system_parts else ""
+
+    # Build Anthropic request body
+    anthropic_body = {
+        "model": openai_body.get("model", ""),
+        "messages": anthropic_messages,
+        "max_tokens": openai_body.get("max_tokens", 4096),
+    }
+
+    # Optional parameters
+    if "temperature" in openai_body:
+        anthropic_body["temperature"] = openai_body["temperature"]
+    if "top_p" in openai_body:
+        anthropic_body["top_p"] = openai_body["top_p"]
+    if "stop" in openai_body:
+        anthropic_body["stop_sequences"] = openai_body["stop"]
+
+    return anthropic_body, system_message
+
+
+def _convert_anthropic_to_openai(anthropic_response: dict[str, Any], model: str) -> dict[str, Any]:
+    """
+    Convert Anthropic Messages API response to OpenAI chat completion format.
+    """
+    content_blocks = anthropic_response.get("content", [])
+
+    # Extract text content
+    text_content = ""
+    for block in content_blocks:
+        if block.get("type") == "text":
+            text_content += block.get("text", "")
+
+    # Get usage info
+    usage = anthropic_response.get("usage", {})
+
+    return {
+        "id": anthropic_response.get("id", "chatcmpl-anthropic"),
+        "object": "chat.completion",
+        "created": int(time.time()),
+        "model": model,
+        "choices": [
+            {
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": text_content,
+                },
+                "finish_reason": anthropic_response.get("stop_reason", "stop"),
+            }
+        ],
+        "usage": {
+            "prompt_tokens": usage.get("input_tokens", 0),
+            "completion_tokens": usage.get("output_tokens", 0),
+            "total_tokens": usage.get("input_tokens", 0) + usage.get("output_tokens", 0),
+        },
+    }
 
 
 def _normalize_messages_for_template(messages: list[dict]) -> list[dict]:
@@ -398,13 +408,6 @@ def _normalize_messages_for_template(messages: list[dict]) -> list[dict]:
                 m["tool_calls"] = tool_calls
         elif not isinstance(raw, str) and raw is not None:
             m["content"] = _flatten_message_content(raw)
-
-        # Ensure any existing tool_calls are proper plain dicts with string arguments
-        # so that Jinja2 chat templates don't fail with "Can only get item pairs from a mapping"
-        if role == "assistant":
-            existing_tcs = m.get("tool_calls")
-            if existing_tcs and isinstance(existing_tcs, list):
-                m["tool_calls"] = _normalize_tool_calls_for_template(existing_tcs)
 
         out.append(m)
     return out
@@ -1194,7 +1197,7 @@ class MetaClawAPIServer:
                     if isinstance(m, dict) and m.get("role") == "system":
                         m["content"] = cached_system
 
-        tools = _normalize_tools_for_template(body.get("tools"))
+        tools = body.get("tools")
 
         effective_memory_scope = memory_scope or self._get_memory_scope(session_id)
         if effective_memory_scope:
@@ -1557,7 +1560,7 @@ class MetaClawAPIServer:
     # ------------------------------------------------------------------ #
 
     async def _forward_to_llm(self, body: dict[str, Any]) -> dict[str, Any]:
-        """Forward to a real OpenAI-compatible API (skills_only mode)."""
+        """Forward to a real OpenAI-compatible or Anthropic Messages API (skills_only mode)."""
         import httpx
 
         api_base = self.config.llm_api_base.rstrip("/")
@@ -1567,60 +1570,127 @@ class MetaClawAPIServer:
                 detail="llm_api_base is not configured. Run 'metaclaw setup' first.",
             )
 
-        # Strip Tinker-specific fields not supported by standard OpenAI APIs
-        send_body = {
-            k: v for k, v in body.items()
-            if k not in {"logprobs", "top_logprobs", "stream_options"}
-        }
-        send_body["model"] = self.config.llm_model_id or body.get("model", "")
-        send_body["stream"] = False
+        # Per-agent model routing: use model from request if it contains known model name
+        incoming_model = body.get("model", "")
+        known_models = ["claude-opus", "claude-sonnet", "claude-haiku", "gpt-", "o1-", "o3-"]
+        use_incoming_model = any(m in incoming_model for m in known_models)
+        model = incoming_model if use_incoming_model else (self.config.llm_model_id or incoming_model)
 
-        headers: dict[str, str] = {}
-        if self.config.llm_api_key:
-            headers["Authorization"] = f"Bearer {self.config.llm_api_key}"
-        # OpenRouter requires HTTP-Referer and X-Title for free-tier model access
-        if "openrouter.ai" in api_base:
-            headers.setdefault("HTTP-Referer", "https://github.com/qwibitai/metaclaw")
-            headers.setdefault("X-Title", "MetaClaw")
+        api_format = getattr(self.config, "llm_api_format", "openai")
 
-        try:
-            async with httpx.AsyncClient(timeout=600.0) as client:
-                resp = await client.post(
-                    f"{api_base}/chat/completions",
-                    json=send_body,
-                    headers=headers,
-                )
-                resp.raise_for_status()
-                result = resp.json()
+        if api_format == "anthropic":
+            # Anthropic Messages API path
+            # Strip Tinker-specific fields
+            send_body = {
+                k: v for k, v in body.items()
+                if k not in {"logprobs", "top_logprobs", "stream_options"}
+            }
+            send_body["model"] = model
+            send_body["stream"] = False
 
-            # Robustness: if the upstream API returns tool calls / reasoning
-            # inlined in content text instead of structured fields, parse them.
-            for choice in result.get("choices", []):
-                msg = choice.get("message")
-                if not msg or msg.get("role") != "assistant":
-                    continue
-                content = msg.get("content") or ""
-                has_tool_calls = bool(msg.get("tool_calls"))
-                has_reasoning = bool(msg.get("reasoning_content"))
-                if not content or (has_tool_calls and has_reasoning):
-                    continue  # already fully structured
-                cleaned, parsed_tools, parsed_reasoning = _extract_tool_calls_from_text(content)
-                if parsed_tools or parsed_reasoning:
-                    msg["content"] = cleaned
-                    if parsed_reasoning and not has_reasoning:
-                        msg["reasoning_content"] = parsed_reasoning
-                    if parsed_tools and not has_tool_calls:
-                        msg["tool_calls"] = parsed_tools
-                        choice["finish_reason"] = "tool_calls"
+            # Convert to Anthropic format
+            anthropic_body, system_message = _convert_openai_to_anthropic(send_body)
+            if system_message:
+                anthropic_body["system"] = system_message
 
-            return result
-        except httpx.HTTPStatusError as e:
-            logger.error("[OpenClaw] upstream LLM error: %s %s", e.response.status_code, e.response.text[:200])
-            logger.debug("[send_body] upstream HTTP error, status=%s", e.response.status_code if hasattr(e, 'response') else 'unknown')
-            raise HTTPException(status_code=502, detail=f"Upstream LLM error: {e}") from e
-        except Exception as e:
-            logger.error("[OpenClaw] LLM forward failed: %s", e, exc_info=True)
-            raise HTTPException(status_code=502, detail=f"LLM forward error: {e}") from e
+            headers: dict[str, str] = {
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json",
+            }
+            if self.config.llm_api_key:
+                headers["x-api-key"] = self.config.llm_api_key
+
+            try:
+                async with httpx.AsyncClient(timeout=600.0) as client:
+                    resp = await client.post(
+                        f"{api_base}/messages",
+                        json=anthropic_body,
+                        headers=headers,
+                    )
+                    resp.raise_for_status()
+                    anthropic_result = resp.json()
+
+                # Convert response back to OpenAI format
+                result = _convert_anthropic_to_openai(anthropic_result, model)
+
+                # Parse tool calls / reasoning from content if needed
+                for choice in result.get("choices", []):
+                    msg = choice.get("message")
+                    if not msg or msg.get("role") != "assistant":
+                        continue
+                    content = msg.get("content") or ""
+                    has_tool_calls = bool(msg.get("tool_calls"))
+                    has_reasoning = bool(msg.get("reasoning_content"))
+                    if not content or (has_tool_calls and has_reasoning):
+                        continue
+                    cleaned, parsed_tools, parsed_reasoning = _extract_tool_calls_from_text(content)
+                    if parsed_tools or parsed_reasoning:
+                        msg["content"] = cleaned
+                        if parsed_reasoning and not has_reasoning:
+                            msg["reasoning_content"] = parsed_reasoning
+                        if parsed_tools and not has_tool_calls:
+                            msg["tool_calls"] = parsed_tools
+                            choice["finish_reason"] = "tool_calls"
+
+                return result
+            except httpx.HTTPStatusError as e:
+                logger.error("[OpenClaw] upstream Anthropic API error: %s %s", e.response.status_code, e.response.text[:200])
+                raise HTTPException(status_code=502, detail=f"Upstream Anthropic API error: {e}") from e
+            except Exception as e:
+                logger.error("[OpenClaw] Anthropic API forward failed: %s", e, exc_info=True)
+                raise HTTPException(status_code=502, detail=f"Anthropic API forward error: {e}") from e
+        else:
+            # OpenAI-compatible API path (default)
+            # Strip Tinker-specific fields not supported by standard OpenAI APIs
+            send_body = {
+                k: v for k, v in body.items()
+                if k not in {"logprobs", "top_logprobs", "stream_options"}
+            }
+            send_body["model"] = model
+            send_body["stream"] = False
+
+            headers: dict[str, str] = {}
+            if self.config.llm_api_key:
+                headers["Authorization"] = f"Bearer {self.config.llm_api_key}"
+
+            try:
+                async with httpx.AsyncClient(timeout=600.0) as client:
+                    resp = await client.post(
+                        f"{api_base}/chat/completions",
+                        json=send_body,
+                        headers=headers,
+                    )
+                    resp.raise_for_status()
+                    result = resp.json()
+
+                # Robustness: if the upstream API returns tool calls / reasoning
+                # inlined in content text instead of structured fields, parse them.
+                for choice in result.get("choices", []):
+                    msg = choice.get("message")
+                    if not msg or msg.get("role") != "assistant":
+                        continue
+                    content = msg.get("content") or ""
+                    has_tool_calls = bool(msg.get("tool_calls"))
+                    has_reasoning = bool(msg.get("reasoning_content"))
+                    if not content or (has_tool_calls and has_reasoning):
+                        continue  # already fully structured
+                    cleaned, parsed_tools, parsed_reasoning = _extract_tool_calls_from_text(content)
+                    if parsed_tools or parsed_reasoning:
+                        msg["content"] = cleaned
+                        if parsed_reasoning and not has_reasoning:
+                            msg["reasoning_content"] = parsed_reasoning
+                        if parsed_tools and not has_tool_calls:
+                            msg["tool_calls"] = parsed_tools
+                            choice["finish_reason"] = "tool_calls"
+
+                return result
+            except httpx.HTTPStatusError as e:
+                logger.error("[OpenClaw] upstream LLM error: %s %s", e.response.status_code, e.response.text[:200])
+                logger.debug("[send_body] upstream HTTP error, status=%s", e.response.status_code if hasattr(e, 'response') else 'unknown')
+                raise HTTPException(status_code=502, detail=f"Upstream LLM error: {e}") from e
+            except Exception as e:
+                logger.error("[OpenClaw] LLM forward failed: %s", e, exc_info=True)
+                raise HTTPException(status_code=502, detail=f"LLM forward error: {e}") from e
 
     # ------------------------------------------------------------------ #
     # Skill evolution (skills_only mode)                                  #

@@ -356,6 +356,9 @@ class MetaClawLauncher:
 
     def _configure_openclaw(self, cfg):
         """Auto-configure OpenClaw to use the MetaClaw proxy."""
+        if not getattr(cfg, "configure_openclaw", True):
+            logger.info("[Launcher] configure_openclaw=False — skipping OpenClaw auto-config")
+            return
         model_id = cfg.llm_model_id or cfg.served_model_name or "metaclaw-model"
         provider_json = json.dumps({
             "api": "openai-completions",

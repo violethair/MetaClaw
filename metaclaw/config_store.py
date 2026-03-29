@@ -21,6 +21,7 @@ _DEFAULTS: dict = {
         "model_id": "",
         "api_base": "",
         "api_key": "",
+        "api_format": "openai",
     },
     "proxy": {"port": 30000, "host": "0.0.0.0"},
     "skills": {
@@ -222,6 +223,9 @@ class ConfigStore:
             llm_api_base=llm.get("api_base", ""),
             llm_api_key=llm.get("api_key", ""),
             llm_model_id=llm.get("model_id", ""),
+            llm_api_format=llm.get("api_format", "openai"),
+            # OpenClaw auto-config
+            configure_openclaw=data.get("configure_openclaw", True),
             # Proxy
             proxy_port=proxy.get("port", 30000),
             proxy_host=proxy.get("host", "0.0.0.0"),
@@ -310,6 +314,7 @@ class ConfigStore:
             f"llm.provider:    {llm.get('provider', '?')}",
             f"llm.model_id:    {llm.get('model_id', '?')}",
             f"llm.api_base:    {llm.get('api_base', '?')}",
+            f"llm.api_format:  {llm.get('api_format', 'openai')}",
             f"proxy.port:      {data.get('proxy', {}).get('port', 30000)}",
             f"skills.enabled:  {skills.get('enabled', True)}",
             f"skills.dir:      {skills.get('dir', '?')}",

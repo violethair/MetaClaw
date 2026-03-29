@@ -103,6 +103,7 @@ class MetaClawConfig:
     # ------------------------------------------------------------------ #
     proxy_port: int = 30000
     proxy_host: str = "0.0.0.0"
+    configure_openclaw: bool = True  # Auto-configure OpenClaw on start
     tinker_sampling_url: str = "http://localhost:8080"  # Tinker sampling endpoint
     served_model_name: str = "qwen3-4b"
     api_key: str = ""                         # Optional bearer token check
@@ -153,6 +154,7 @@ class MetaClawConfig:
     llm_api_base: str = ""      # e.g. https://api.moonshot.cn/v1
     llm_api_key: str = ""       # bearer token for upstream LLM
     llm_model_id: str = ""      # model name to forward to
+    llm_api_format: str = "openai"  # API format: "openai" | "anthropic"
 
     # ------------------------------------------------------------------ #
     # LLM for skill evolution                                             #
