@@ -353,6 +353,24 @@ def _convert_openai_to_anthropic(openai_body: dict[str, Any]) -> tuple[dict[str,
     if "stop" in openai_body:
         anthropic_body["stop_sequences"] = openai_body["stop"]
 
+    # Forward thinking/extended thinking params (Anthropic-native)
+    if "thinking" in openai_body:
+        anthropic_body["thinking"] = openai_body["thinking"]
+        # Ensure max_tokens > thinking.budget_tokens
+        budget = openai_body["thinking"].get("budget_tokens", 0)
+        if anthropic_body["max_tokens"] <= budget:
+            anthropic_body["max_tokens"] = budget + 8192
+    
+    # Forward tool_choice, tools if present
+    if "tools" in openai_body:
+        anthropic_body["tools"] = openai_body["tools"]
+    if "tool_choice" in openai_body:
+        anthropic_body["tool_choice"] = openai_body["tool_choice"]
+
+    # Forward stream flag
+    if "stream" in openai_body:
+        anthropic_body["stream"] = openai_body["stream"]
+
     return anthropic_body, system_message
 
 
