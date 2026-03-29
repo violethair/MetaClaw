@@ -326,9 +326,39 @@ def _convert_openai_to_anthropic(openai_body: dict[str, Any]) -> tuple[dict[str,
             else:
                 system_parts.append(str(content))
         elif role == "assistant":
+            if "tool_calls" in msg and msg["tool_calls"]:
+                # Convert OpenAI tool_calls to Anthropic tool_use content blocks
+                blocks = []
+                if content:
+                    text = content if isinstance(content, str) else str(content)
+                    if text:
+                        blocks.append({"type": "text", "text": text})
+                for tc in msg["tool_calls"]:
+                    import json as _json
+                    blocks.append({
+                        "type": "tool_use",
+                        "id": tc.get("id", ""),
+                        "name": tc.get("function", {}).get("name", ""),
+                        "input": _json.loads(tc.get("function", {}).get("arguments", "{}")) if isinstance(tc.get("function", {}).get("arguments"), str) else tc.get("function", {}).get("arguments", {}),
+                    })
+                anthropic_messages.append({
+                    "role": "assistant",
+                    "content": blocks,
+                })
+            else:
+                anthropic_messages.append({
+                    "role": "assistant",
+                    "content": content,
+                })
+        elif role == "tool":
+            # OpenAI tool result -> Anthropic tool_result content block
             anthropic_messages.append({
-                "role": "assistant",
-                "content": content,
+                "role": "user",
+                "content": [{
+                    "type": "tool_result",
+                    "tool_use_id": msg.get("tool_call_id", ""),
+                    "content": str(content) if isinstance(content, str) else content,
+                }],
             })
         else:  # user or other roles treated as user
             anthropic_messages.append({
@@ -361,11 +391,36 @@ def _convert_openai_to_anthropic(openai_body: dict[str, Any]) -> tuple[dict[str,
         if anthropic_body["max_tokens"] <= budget:
             anthropic_body["max_tokens"] = budget + 8192
     
-    # Forward tool_choice, tools if present
+    # Forward tools - convert OpenAI function format to Anthropic format
     if "tools" in openai_body:
-        anthropic_body["tools"] = openai_body["tools"]
+        anthropic_tools = []
+        for tool in openai_body["tools"]:
+            if tool.get("type") == "function":
+                func = tool.get("function", {})
+                anthropic_tools.append({
+                    "name": func.get("name", ""),
+                    "description": func.get("description", ""),
+                    "input_schema": func.get("parameters", {"type": "object", "properties": {}}),
+                })
+            else:
+                # Already Anthropic format or unknown, pass through
+                anthropic_tools.append(tool)
+        anthropic_body["tools"] = anthropic_tools
+
+    # Forward tool_choice - convert OpenAI format to Anthropic
     if "tool_choice" in openai_body:
-        anthropic_body["tool_choice"] = openai_body["tool_choice"]
+        tc = openai_body["tool_choice"]
+        if tc == "auto":
+            anthropic_body["tool_choice"] = {"type": "auto"}
+        elif tc == "none":
+            # Anthropic doesn't have "none" - just don't send tools
+            anthropic_body.pop("tools", None)
+        elif tc == "required":
+            anthropic_body["tool_choice"] = {"type": "any"}
+        elif isinstance(tc, dict) and tc.get("type") == "function":
+            anthropic_body["tool_choice"] = {"type": "tool", "name": tc["function"]["name"]}
+        elif isinstance(tc, dict):
+            anthropic_body["tool_choice"] = tc
 
     # Forward stream flag
     if "stream" in openai_body:
