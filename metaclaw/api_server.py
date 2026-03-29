@@ -440,16 +440,47 @@ def _convert_anthropic_to_openai(anthropic_response: dict[str, Any], model: str)
     """
     Convert Anthropic Messages API response to OpenAI chat completion format.
     """
+    import json as _json
     content_blocks = anthropic_response.get("content", [])
 
-    # Extract text content
+    # Extract text content and tool_use blocks
     text_content = ""
+    tool_calls = []
     for block in content_blocks:
         if block.get("type") == "text":
             text_content += block.get("text", "")
+        elif block.get("type") == "tool_use":
+            tool_calls.append({
+                "id": block.get("id", ""),
+                "type": "function",
+                "function": {
+                    "name": block.get("name", ""),
+                    "arguments": _json.dumps(block.get("input", {})),
+                },
+            })
+
+    # Map Anthropic stop_reason to OpenAI finish_reason
+    stop_reason = anthropic_response.get("stop_reason", "end_turn")
+    if stop_reason == "end_turn":
+        finish_reason = "stop"
+    elif stop_reason == "tool_use":
+        finish_reason = "tool_calls"
+    elif stop_reason == "max_tokens":
+        finish_reason = "length"
+    elif stop_reason == "stop_sequence":
+        finish_reason = "stop"
+    else:
+        finish_reason = "stop"
 
     # Get usage info
     usage = anthropic_response.get("usage", {})
+
+    message: dict[str, Any] = {
+        "role": "assistant",
+        "content": text_content or None,
+    }
+    if tool_calls:
+        message["tool_calls"] = tool_calls
 
     return {
         "id": anthropic_response.get("id", "chatcmpl-anthropic"),
@@ -459,11 +490,8 @@ def _convert_anthropic_to_openai(anthropic_response: dict[str, Any], model: str)
         "choices": [
             {
                 "index": 0,
-                "message": {
-                    "role": "assistant",
-                    "content": text_content,
-                },
-                "finish_reason": anthropic_response.get("stop_reason", "stop"),
+                "message": message,
+                "finish_reason": finish_reason,
             }
         ],
         "usage": {
