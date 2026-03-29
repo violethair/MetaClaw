@@ -302,8 +302,29 @@ def _convert_openai_to_anthropic(openai_body: dict[str, Any]) -> tuple[dict[str,
         role = msg.get("role", "user")
         content = msg.get("content", "")
 
+        # Normalize content: Anthropic expects either a string or a list of content blocks.
+        # If content is a list, ensure each block has proper structure.
+        # If content is None/empty, use empty string.
+        if content is None:
+            content = ""
+        if isinstance(content, list):
+            # Keep as list but ensure valid content blocks
+            normalized = []
+            for block in content:
+                if isinstance(block, str):
+                    normalized.append({"type": "text", "text": block})
+                elif isinstance(block, dict):
+                    normalized.append(block)
+            content = normalized if normalized else ""
+
         if role == "system":
-            system_parts.append(content)
+            # System content: extract text
+            if isinstance(content, list):
+                system_parts.append(" ".join(
+                    b.get("text", "") for b in content if b.get("type") == "text"
+                ))
+            else:
+                system_parts.append(str(content))
         elif role == "assistant":
             anthropic_messages.append({
                 "role": "assistant",
