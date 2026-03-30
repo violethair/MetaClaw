@@ -1707,6 +1707,14 @@ class MetaClawAPIServer:
 
         api_format = getattr(self.config, "llm_api_format", "openai")
 
+        headers: dict[str, str] = {}
+        if self.config.llm_api_key:
+            headers["Authorization"] = f"Bearer {self.config.llm_api_key}"
+        # OpenRouter requires HTTP-Referer and X-Title for free-tier model access
+        if "openrouter.ai" in api_base:
+            headers.setdefault("HTTP-Referer", "https://github.com/aiming-lab/MetaClaw")
+            headers.setdefault("X-Title", "MetaClaw")
+
         if api_format == "anthropic":
             # Anthropic Messages API path
             # Strip Tinker-specific fields
